@@ -30,7 +30,7 @@ jobs:
       STAGE: ${{ inputs.stage }}
       INFRA_REPO: ${{ inputs.infra_repo || format('{0}/aws-infra', github.repository_owner) }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Push infra YAML to aws-infra
         run: |
