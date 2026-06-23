@@ -22,7 +22,6 @@ on:
 
 jobs:
   register-infra:
-    name: Register infra config
     runs-on: ubuntu-latest
     env:
       GH_TOKEN: ${{ secrets.infra_github_token }}
