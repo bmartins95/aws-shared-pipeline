@@ -32,7 +32,7 @@ Registers an app's infrastructure config with `aws-infra` and waits for the plat
 
 ```yaml
 register-infra:
-  uses: bmartins95/aws-shared-pipeline/.github/workflows/register-infra.yml@main
+  uses: bmartins95/aws-shared-pipeline/.github/workflows/register-infra.yml@master
   with:
     app_name: my-app
     stage: prod
