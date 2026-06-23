@@ -1,0 +1,86 @@
+name: Register infrastructure config
+
+on:
+  workflow_call:
+    inputs:
+      app_name:
+        description: "App name — matches the folder under apps/ in aws-infra and the SSM namespace"
+        required: true
+        type: string
+      stage:
+        description: "Deployment stage (prod, stg, dev). Must match a YAML file at infra/{stage}.yaml in the caller repo."
+        required: true
+        type: string
+      infra_repo:
+        description: "Owner/repo of the aws-infra repository. Defaults to {caller-owner}/aws-infra."
+        required: false
+        type: string
+    secrets:
+      infra_github_token:
+        description: "PAT with contents:write and actions:write on the aws-infra repository"
+        required: true
+
+jobs:
+  register-infra:
+    name: Register infra config
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ secrets.infra_github_token }}
+      APP_NAME: ${{ inputs.app_name }}
+      STAGE: ${{ inputs.stage }}
+      INFRA_REPO: ${{ inputs.infra_repo || format('{0}/aws-infra', github.repository_owner) }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Push infra YAML to aws-infra
+        run: |
+          YAML_PATH="infra/$STAGE.yaml"
+          CONTENT=$(base64 -w 0 < "$YAML_PATH")
+          REMOTE_PATH="apps/$APP_NAME/$STAGE.yaml"
+
+          SHA=$(gh api "repos/$INFRA_REPO/contents/$REMOTE_PATH" \
+            --jq '.sha' 2>/dev/null || echo "")
+
+          if [ -n "$SHA" ]; then
+            gh api "repos/$INFRA_REPO/contents/$REMOTE_PATH" \
+              -X PUT \
+              -f "message=chore: update $APP_NAME $STAGE infra config" \
+              -f "content=$CONTENT" \
+              -f "sha=$SHA"
+          else
+            gh api "repos/$INFRA_REPO/contents/$REMOTE_PATH" \
+              -X PUT \
+              -f "message=chore: register $APP_NAME $STAGE infra config" \
+              -f "content=$CONTENT"
+          fi
+
+      - name: Trigger aws-infra pipeline
+        run: |
+          echo "DISPATCH_TIME=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_ENV"
+          gh api "repos/$INFRA_REPO/dispatches" \
+            -f event_type=deploy-app \
+            -f "client_payload[stage]=$STAGE"
+
+      - name: Wait for aws-infra pipeline
+        run: |
+          sleep 30
+          RUN_ID=$(gh run list \
+            --repo "$INFRA_REPO" \
+            --event repository_dispatch \
+            --limit 10 \
+            --json databaseId,createdAt \
+            --jq "[.[] | select(.createdAt >= \"$DISPATCH_TIME\")] | .[0].databaseId")
+
+          if [ -z "$RUN_ID" ] || [ "$RUN_ID" = "null" ]; then
+            echo "Could not find triggered run, retrying in 30s..."
+            sleep 30
+            RUN_ID=$(gh run list \
+              --repo "$INFRA_REPO" \
+              --event repository_dispatch \
+              --limit 10 \
+              --json databaseId,createdAt \
+              --jq "[.[] | select(.createdAt >= \"$DISPATCH_TIME\")] | .[0].databaseId")
+          fi
+
+          echo "Watching run $RUN_ID in $INFRA_REPO"
+          gh run watch "$RUN_ID" --repo "$INFRA_REPO" --exit-status
