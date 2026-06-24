@@ -16,7 +16,7 @@ on:
         required: false
         type: string
     secrets:
-      infra_github_token:
+      INFRA_GITHUB_TOKEN:
         description: "PAT with contents:write and actions:write on the aws-infra repository"
         required: true
 
@@ -24,7 +24,7 @@ jobs:
   register-infra:
     runs-on: ubuntu-latest
     env:
-      GH_TOKEN: ${{ secrets.infra_github_token }}
+      GH_TOKEN: ${{ secrets.INFRA_GITHUB_TOKEN }}
       APP_NAME: ${{ inputs.app_name }}
       STAGE: ${{ inputs.stage }}
       INFRA_REPO: ${{ inputs.infra_repo || format('{0}/aws-infra', github.repository_owner) }}

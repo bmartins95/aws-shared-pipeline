@@ -39,8 +39,7 @@ jobs:
     with:
       app_name: your-app-name  # TODO
       stage: dev
-    secrets:
-      infra_github_token: ${{ secrets.INFRA_GITHUB_TOKEN }}
+    secrets: inherit
 
   deploy-dev:
     name: Deploy dev
@@ -49,14 +48,9 @@ jobs:
     with:
       app_name: your-app-name  # TODO
       stage: dev
-      # TODO: uncomment / set the stack options that apply:
-      # python_version: '3.12'
-      # setup_uv: true
-      # go_version: '1.22'
-      # has_web: false        # set to false for backend-only apps
-    secrets:
-      aws_access_key_id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-      aws_secret_access_key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+      stack: node  # TODO: python-sst | go | node
+      # has_web: false  # uncomment for backend-only apps
+    secrets: inherit
 
   # ── stg (manual approval) ─────────────────────────────────────────────────
 
@@ -75,8 +69,7 @@ jobs:
     with:
       app_name: your-app-name  # TODO
       stage: stg
-    secrets:
-      infra_github_token: ${{ secrets.INFRA_GITHUB_TOKEN }}
+    secrets: inherit
 
   deploy-stg:
     name: Deploy stg
@@ -85,12 +78,9 @@ jobs:
     with:
       app_name: your-app-name  # TODO
       stage: stg
+      stack: node  # TODO: same as deploy-dev
       promote_branch: staging
-      # TODO: same stack options as deploy-dev
-    secrets:
-      aws_access_key_id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-      aws_secret_access_key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-      promote_token: ${{ secrets.PROMOTE_TOKEN }}
+    secrets: inherit
 
   # ── prod (manual approval) ────────────────────────────────────────────────
 
@@ -109,8 +99,7 @@ jobs:
     with:
       app_name: your-app-name  # TODO
       stage: prod
-    secrets:
-      infra_github_token: ${{ secrets.INFRA_GITHUB_TOKEN }}
+    secrets: inherit
 
   deploy-prod:
     name: Deploy prod
@@ -119,9 +108,6 @@ jobs:
     with:
       app_name: your-app-name  # TODO
       stage: prod
+      stack: node  # TODO: same as deploy-dev
       promote_branch: master
-      # TODO: same stack options as deploy-dev
-    secrets:
-      aws_access_key_id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-      aws_secret_access_key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-      promote_token: ${{ secrets.PROMOTE_TOKEN }}
+    secrets: inherit

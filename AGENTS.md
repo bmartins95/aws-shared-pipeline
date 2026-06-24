@@ -36,7 +36,7 @@ Registers an app's infrastructure config with `aws-infra` and waits for the plat
 | `stage` | yes | — | Stage (`prod`, `stg`, `dev`) — must match `infra/{stage}.yaml` in caller |
 | `infra_repo` | no | `{owner}/aws-infra` | Override the aws-infra repo |
 
-**Secrets:** `infra_github_token` — PAT with `contents:write` + `actions:write` on aws-infra.
+**Secrets:** `INFRA_GITHUB_TOKEN` — PAT with `contents:write` + `actions:write` on aws-infra. Use `secrets: inherit` in callers.
 
 ---
 
@@ -49,16 +49,15 @@ Full deploy job for one stage. Apps call this instead of writing their own deplo
 - `scripts/ci-build-web.sh <stage>` — builds the frontend (receives stage as `$1`; Cognito + backend env vars are injected automatically)
 
 **What it does (in order):**
-1. Checkout (with `promote_token` if provided, else `GITHUB_TOKEN`)
-2. Setup Python (if `python_version` set)
-3. Setup uv (if `setup_uv: true`)
-4. Setup Go (if `go_version` set)
-5. Setup Node.js
-6. Configure AWS credentials
-7. `bash scripts/ci-deploy.sh $stage`
-8. Read SSM outputs: `CognitoUserPoolId`, `CognitoWebClientId`, `CognitoDomain`, `BackendApiUrl`
-9. `bash scripts/ci-build-web.sh $stage` (if `has_web: true`) — env vars injected
-10. Force-push HEAD to `promote_branch` (if set)
+1. Checkout (with `PROMOTE_TOKEN` if provided, else `GITHUB_TOKEN`)
+2. Setup Python 3.12 + uv (if `stack: python-sst`)
+3. Setup Go 1.22 (if `stack: go`)
+4. Setup Node.js
+5. Configure AWS credentials
+6. `bash scripts/ci-deploy.sh $stage`
+7. Read SSM outputs: `CognitoUserPoolId`, `CognitoWebClientId`, `CognitoDomain`, `BackendApiUrl`
+8. `bash scripts/ci-build-web.sh $stage` (if `has_web: true`) — env vars injected
+9. Force-push HEAD to `promote_branch` (if set)
 
 **Inputs:**
 
@@ -67,14 +66,12 @@ Full deploy job for one stage. Apps call this instead of writing their own deplo
 | `app_name` | yes | — | SSM namespace prefix |
 | `stage` | yes | — | `dev`, `stg`, or `prod` |
 | `promote_branch` | no | `''` | Branch to force-push to after deploy (e.g. `staging`, `master`) |
-| `python_version` | no | `''` | Python version (empty = skip) |
-| `setup_uv` | no | `false` | Install uv (required for SST Python Lambda packaging) |
-| `go_version` | no | `''` | Go version (empty = skip) |
+| `stack` | no | `'node'` | Backend stack: `python-sst` (Python 3.12 + uv), `go` (Go 1.22), `node` (Node only) |
 | `node_version` | no | `'20'` | Node.js version |
 | `has_web` | no | `true` | Whether to run `ci-build-web.sh` |
 | `aws_region` | no | `'us-east-1'` | AWS region |
 
-**Secrets:** `aws_access_key_id`, `aws_secret_access_key` (required); `promote_token` (optional, falls back to `GITHUB_TOKEN`).
+**Secrets:** `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY` (required); `PROMOTE_TOKEN` (optional, falls back to `GITHUB_TOKEN`). Use `secrets: inherit` in callers.
 
 **Usage:**
 ```yaml
@@ -83,11 +80,8 @@ deploy-dev:
   with:
     app_name: my-app
     stage: dev
-    python_version: "3.12"
-    setup_uv: true
-  secrets:
-    aws_access_key_id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-    aws_secret_access_key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+    stack: python-sst
+  secrets: inherit
 ```
 
 ## Composite Actions

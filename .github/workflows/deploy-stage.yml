@@ -16,21 +16,11 @@ on:
         required: false
         type: string
         default: ''
-      python_version:
-        description: Python version to set up (e.g. 3.12). Leave empty to skip.
+      stack:
+        description: 'Backend stack type: python-sst (Python 3.12 + uv), go (Go 1.22), node (Node only)'
         required: false
         type: string
-        default: ''
-      setup_uv:
-        description: Install uv (required for SST Python Lambda packaging)
-        required: false
-        type: boolean
-        default: false
-      go_version:
-        description: Go version to set up (e.g. 1.22). Leave empty to skip.
-        required: false
-        type: string
-        default: ''
+        default: 'node'
       node_version:
         description: Node.js version for tooling (npx sst, web build, etc.)
         required: false
@@ -46,11 +36,11 @@ on:
         type: string
         default: 'us-east-1'
     secrets:
-      aws_access_key_id:
+      AWS_ACCESS_KEY_ID:
         required: true
-      aws_secret_access_key:
+      AWS_SECRET_ACCESS_KEY:
         required: true
-      promote_token:
+      PROMOTE_TOKEN:
         description: PAT with contents:write used for branch promotion. Falls back to GITHUB_TOKEN if not provided.
         required: false
 
@@ -60,20 +50,20 @@ jobs:
     steps:
       - uses: actions/checkout@v7
         with:
-          token: ${{ secrets.promote_token || github.token }}
+          token: ${{ secrets.PROMOTE_TOKEN || github.token }}
 
       - uses: actions/setup-python@v5
-        if: inputs.python_version != ''
+        if: inputs.stack == 'python-sst'
         with:
-          python-version: ${{ inputs.python_version }}
+          python-version: '3.12'
 
       - uses: astral-sh/setup-uv@v6
-        if: inputs.setup_uv
+        if: inputs.stack == 'python-sst'
 
       - uses: actions/setup-go@v5
-        if: inputs.go_version != ''
+        if: inputs.stack == 'go'
         with:
-          go-version: ${{ inputs.go_version }}
+          go-version: '1.22'
 
       - uses: actions/setup-node@v6
         with:
@@ -82,8 +72,8 @@ jobs:
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v6
         with:
-          aws-access-key-id: ${{ secrets.aws_access_key_id }}
-          aws-secret-access-key: ${{ secrets.aws_secret_access_key }}
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ inputs.aws_region }}
 
       - name: Deploy backend
