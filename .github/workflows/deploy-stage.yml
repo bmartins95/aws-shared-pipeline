@@ -90,8 +90,6 @@ jobs:
           echo "backend_url=$(get $base/BackendApiUrl)" >> "$GITHUB_OUTPUT"
           echo "web_bucket=$(get $base/WebBucketName)" >> "$GITHUB_OUTPUT"
           echo "web_distribution_id=$(get $base/WebDistributionId)" >> "$GITHUB_OUTPUT"
-          echo "supabase_url=$(get $base/SupabaseUrl)" >> "$GITHUB_OUTPUT"
-          echo "supabase_key=$(get $base/SupabasePublishableKey)" >> "$GITHUB_OUTPUT"
 
       - name: Build web
         if: inputs.has_web
@@ -101,8 +99,6 @@ jobs:
           VITE_COGNITO_CLIENT_ID: ${{ steps.ssm.outputs.web_client_id }}
           VITE_COGNITO_DOMAIN: ${{ steps.ssm.outputs.cognito_domain }}
           VITE_BACKEND_URL: ${{ steps.ssm.outputs.backend_url }}
-          VITE_SUPABASE_URL: ${{ steps.ssm.outputs.supabase_url }}
-          VITE_SUPABASE_PUBLISHABLE_KEY: ${{ steps.ssm.outputs.supabase_key }}
           WEB_BUCKET_NAME: ${{ steps.ssm.outputs.web_bucket }}
           WEB_DISTRIBUTION_ID: ${{ steps.ssm.outputs.web_distribution_id }}
 
