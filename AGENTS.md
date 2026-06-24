@@ -73,6 +73,17 @@ Full deploy job for one stage. Apps call this instead of writing their own deplo
 
 **Secrets:** `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY` (required); `PROMOTE_TOKEN` (optional, falls back to `GITHUB_TOKEN`). Use `secrets: inherit` in callers.
 
+**Env vars injected into `ci-build-web.sh`:**
+
+| Var | Source |
+|---|---|
+| `VITE_COGNITO_USER_POOL_ID` | SSM `/{app}/{stage}/CognitoUserPoolId` |
+| `VITE_COGNITO_CLIENT_ID` | SSM `/{app}/{stage}/CognitoWebClientId` |
+| `VITE_COGNITO_DOMAIN` | SSM `/{app}/{stage}/CognitoDomain` |
+| `NEXT_PUBLIC_BACKEND_URL` | SSM `/{app}/{stage}/BackendApiUrl` |
+| `WEB_BUCKET_NAME` | SSM `/{app}/{stage}/WebBucketName` (empty if CloudFront not provisioned) |
+| `WEB_DISTRIBUTION_ID` | SSM `/{app}/{stage}/WebDistributionId` (empty if CloudFront not provisioned) |
+
 **Usage:**
 ```yaml
 deploy-dev:
