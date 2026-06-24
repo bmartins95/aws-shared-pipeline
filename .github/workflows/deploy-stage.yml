@@ -91,7 +91,7 @@ jobs:
 
       - name: Read SSM outputs
         id: ssm
-        uses: ./.github/actions/read-platform-ssm
+        uses: bmartins95/aws-shared-pipeline/.github/actions/read-platform-ssm@master
         with:
           app_name: ${{ inputs.app_name }}
           stage: ${{ inputs.stage }}
@@ -107,6 +107,6 @@ jobs:
 
       - name: Promote branch
         if: inputs.promote_branch != ''
-        uses: ./.github/actions/promote-branch
+        uses: bmartins95/aws-shared-pipeline/.github/actions/promote-branch@master
         with:
           target_branch: ${{ inputs.promote_branch }}
