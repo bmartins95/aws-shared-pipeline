@@ -91,10 +91,13 @@ jobs:
 
       - name: Read SSM outputs
         id: ssm
-        uses: bmartins95/aws-shared-pipeline/.github/actions/read-platform-ssm@master
-        with:
-          app_name: ${{ inputs.app_name }}
-          stage: ${{ inputs.stage }}
+        run: |
+          get() { aws ssm get-parameter --name "$1" --query "Parameter.Value" --output text 2>/dev/null || echo ""; }
+          base="/${{ inputs.app_name }}/${{ inputs.stage }}"
+          echo "pool_id=$(get $base/CognitoUserPoolId)" >> "$GITHUB_OUTPUT"
+          echo "web_client_id=$(get $base/CognitoWebClientId)" >> "$GITHUB_OUTPUT"
+          echo "cognito_domain=$(get $base/CognitoDomain)" >> "$GITHUB_OUTPUT"
+          echo "backend_url=$(get $base/BackendApiUrl)" >> "$GITHUB_OUTPUT"
 
       - name: Build web
         if: inputs.has_web
@@ -107,6 +110,4 @@ jobs:
 
       - name: Promote branch
         if: inputs.promote_branch != ''
-        uses: bmartins95/aws-shared-pipeline/.github/actions/promote-branch@master
-        with:
-          target_branch: ${{ inputs.promote_branch }}
+        run: git push origin HEAD:refs/heads/${{ inputs.promote_branch }} --force
