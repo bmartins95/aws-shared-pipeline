@@ -1,0 +1,112 @@
+name: Deploy stage
+
+on:
+  workflow_call:
+    inputs:
+      app_name:
+        description: App name used for SSM paths (e.g. crypto-assist)
+        required: true
+        type: string
+      stage:
+        description: Deployment stage (dev, stg, prod)
+        required: true
+        type: string
+      promote_branch:
+        description: Branch to force-push HEAD to after deploy (e.g. staging, master). Leave empty to skip.
+        required: false
+        type: string
+        default: ''
+      python_version:
+        description: Python version to set up (e.g. 3.12). Leave empty to skip.
+        required: false
+        type: string
+        default: ''
+      setup_uv:
+        description: Install uv (required for SST Python Lambda packaging)
+        required: false
+        type: boolean
+        default: false
+      go_version:
+        description: Go version to set up (e.g. 1.22). Leave empty to skip.
+        required: false
+        type: string
+        default: ''
+      node_version:
+        description: Node.js version for tooling (npx sst, web build, etc.)
+        required: false
+        type: string
+        default: '20'
+      has_web:
+        description: Whether to run scripts/ci-build-web.sh after deploy
+        required: false
+        type: boolean
+        default: true
+      aws_region:
+        required: false
+        type: string
+        default: 'us-east-1'
+    secrets:
+      aws_access_key_id:
+        required: true
+      aws_secret_access_key:
+        required: true
+      promote_token:
+        description: PAT with contents:write used for branch promotion. Falls back to GITHUB_TOKEN if not provided.
+        required: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          token: ${{ secrets.promote_token || github.token }}
+
+      - uses: actions/setup-python@v5
+        if: inputs.python_version != ''
+        with:
+          python-version: ${{ inputs.python_version }}
+
+      - uses: astral-sh/setup-uv@v6
+        if: inputs.setup_uv
+
+      - uses: actions/setup-go@v5
+        if: inputs.go_version != ''
+        with:
+          go-version: ${{ inputs.go_version }}
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: ${{ inputs.node_version }}
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v6
+        with:
+          aws-access-key-id: ${{ secrets.aws_access_key_id }}
+          aws-secret-access-key: ${{ secrets.aws_secret_access_key }}
+          aws-region: ${{ inputs.aws_region }}
+
+      - name: Deploy backend
+        run: bash scripts/ci-deploy.sh ${{ inputs.stage }}
+
+      - name: Read SSM outputs
+        id: ssm
+        uses: ./.github/actions/read-platform-ssm
+        with:
+          app_name: ${{ inputs.app_name }}
+          stage: ${{ inputs.stage }}
+
+      - name: Build web
+        if: inputs.has_web
+        run: bash scripts/ci-build-web.sh ${{ inputs.stage }}
+        env:
+          VITE_COGNITO_USER_POOL_ID: ${{ steps.ssm.outputs.pool_id }}
+          VITE_COGNITO_CLIENT_ID: ${{ steps.ssm.outputs.web_client_id }}
+          VITE_COGNITO_DOMAIN: ${{ steps.ssm.outputs.cognito_domain }}
+          NEXT_PUBLIC_BACKEND_URL: ${{ steps.ssm.outputs.backend_url }}
+
+      - name: Promote branch
+        if: inputs.promote_branch != ''
+        uses: ./.github/actions/promote-branch
+        with:
+          target_branch: ${{ inputs.promote_branch }}

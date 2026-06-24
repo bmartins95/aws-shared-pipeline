@@ -1,0 +1,37 @@
+name: Read platform SSM outputs
+description: Reads standard Cognito and BackendApiUrl SSM outputs for a stage
+
+inputs:
+  app_name:
+    description: App name used as SSM namespace prefix (e.g. crypto-assist)
+    required: true
+  stage:
+    description: Deployment stage (dev, stg, prod)
+    required: true
+
+outputs:
+  pool_id:
+    description: Cognito User Pool ID
+    value: ${{ steps.read.outputs.pool_id }}
+  web_client_id:
+    description: Cognito Web Client ID
+    value: ${{ steps.read.outputs.web_client_id }}
+  cognito_domain:
+    description: Cognito hosted UI domain
+    value: ${{ steps.read.outputs.cognito_domain }}
+  backend_url:
+    description: Backend API URL (empty if not yet written)
+    value: ${{ steps.read.outputs.backend_url }}
+
+runs:
+  using: composite
+  steps:
+    - id: read
+      shell: bash
+      run: |
+        get() { aws ssm get-parameter --name "$1" --query "Parameter.Value" --output text 2>/dev/null || echo ""; }
+        base="/${{ inputs.app_name }}/${{ inputs.stage }}"
+        echo "pool_id=$(get $base/CognitoUserPoolId)" >> "$GITHUB_OUTPUT"
+        echo "web_client_id=$(get $base/CognitoWebClientId)" >> "$GITHUB_OUTPUT"
+        echo "cognito_domain=$(get $base/CognitoDomain)" >> "$GITHUB_OUTPUT"
+        echo "backend_url=$(get $base/BackendApiUrl)" >> "$GITHUB_OUTPUT"

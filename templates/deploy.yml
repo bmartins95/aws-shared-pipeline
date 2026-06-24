@@ -1,0 +1,127 @@
+# Template: copy to your-app/.github/workflows/deploy.yml and fill in the TODOs.
+#
+# Contract — your repo must provide:
+#   scripts/ci-deploy.sh <stage>      Deploy your backend (receives stage as $1)
+#   scripts/ci-build-web.sh <stage>   Build your frontend (receives stage as $1)
+#                                     Cognito + backend SSM outputs are injected as env vars:
+#                                       VITE_COGNITO_USER_POOL_ID
+#                                       VITE_COGNITO_CLIENT_ID
+#                                       VITE_COGNITO_DOMAIN
+#                                       NEXT_PUBLIC_BACKEND_URL
+#
+# Required GitHub Secrets:
+#   AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY  — IAM key for deployments
+#   INFRA_GITHUB_TOKEN                         — fine-grained PAT for aws-infra repo
+#   PROMOTE_TOKEN                              — PAT with contents:write for branch promotion
+#
+# Required GitHub Environments: stg (reviewer gate), prod (reviewer gate)
+
+name: Deploy
+
+on:
+  push:
+    branches: [develop]
+
+jobs:
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      # TODO: add your stack-specific test steps here
+
+  # ── dev (automatic) ───────────────────────────────────────────────────────
+
+  register-dev:
+    name: Register dev
+    needs: test
+    uses: bmartins95/aws-shared-pipeline/.github/workflows/register-infra.yml@master
+    with:
+      app_name: your-app-name  # TODO
+      stage: dev
+    secrets:
+      infra_github_token: ${{ secrets.INFRA_GITHUB_TOKEN }}
+
+  deploy-dev:
+    name: Deploy dev
+    needs: register-dev
+    uses: bmartins95/aws-shared-pipeline/.github/workflows/deploy-stage.yml@master
+    with:
+      app_name: your-app-name  # TODO
+      stage: dev
+      # TODO: uncomment / set the stack options that apply:
+      # python_version: '3.12'
+      # setup_uv: true
+      # go_version: '1.22'
+      # has_web: false        # set to false for backend-only apps
+    secrets:
+      aws_access_key_id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      aws_secret_access_key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+
+  # ── stg (manual approval) ─────────────────────────────────────────────────
+
+  approve-stg:
+    name: Approve stg
+    needs: deploy-dev
+    environment: stg
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "Approved for stg"
+
+  register-stg:
+    name: Register stg
+    needs: approve-stg
+    uses: bmartins95/aws-shared-pipeline/.github/workflows/register-infra.yml@master
+    with:
+      app_name: your-app-name  # TODO
+      stage: stg
+    secrets:
+      infra_github_token: ${{ secrets.INFRA_GITHUB_TOKEN }}
+
+  deploy-stg:
+    name: Deploy stg
+    needs: register-stg
+    uses: bmartins95/aws-shared-pipeline/.github/workflows/deploy-stage.yml@master
+    with:
+      app_name: your-app-name  # TODO
+      stage: stg
+      promote_branch: staging
+      # TODO: same stack options as deploy-dev
+    secrets:
+      aws_access_key_id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      aws_secret_access_key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+      promote_token: ${{ secrets.PROMOTE_TOKEN }}
+
+  # ── prod (manual approval) ────────────────────────────────────────────────
+
+  approve-prod:
+    name: Approve prod
+    needs: deploy-stg
+    environment: prod
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "Approved for prod"
+
+  register-prod:
+    name: Register prod
+    needs: approve-prod
+    uses: bmartins95/aws-shared-pipeline/.github/workflows/register-infra.yml@master
+    with:
+      app_name: your-app-name  # TODO
+      stage: prod
+    secrets:
+      infra_github_token: ${{ secrets.INFRA_GITHUB_TOKEN }}
+
+  deploy-prod:
+    name: Deploy prod
+    needs: register-prod
+    uses: bmartins95/aws-shared-pipeline/.github/workflows/deploy-stage.yml@master
+    with:
+      app_name: your-app-name  # TODO
+      stage: prod
+      promote_branch: master
+      # TODO: same stack options as deploy-dev
+    secrets:
+      aws_access_key_id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      aws_secret_access_key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+      promote_token: ${{ secrets.PROMOTE_TOKEN }}

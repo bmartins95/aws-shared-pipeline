@@ -1,0 +1,13 @@
+name: Promote branch
+description: Force-push HEAD to a target branch (e.g. staging, master)
+
+inputs:
+  target_branch:
+    description: Branch to push to
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - shell: bash
+      run: git push origin HEAD:refs/heads/${{ inputs.target_branch }} --force
