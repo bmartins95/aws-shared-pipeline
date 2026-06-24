@@ -88,6 +88,8 @@ jobs:
           echo "web_client_id=$(get $base/CognitoWebClientId)" >> "$GITHUB_OUTPUT"
           echo "cognito_domain=$(get $base/CognitoDomain)" >> "$GITHUB_OUTPUT"
           echo "backend_url=$(get $base/BackendApiUrl)" >> "$GITHUB_OUTPUT"
+          echo "web_bucket=$(get $base/WebBucketName)" >> "$GITHUB_OUTPUT"
+          echo "web_distribution_id=$(get $base/WebDistributionId)" >> "$GITHUB_OUTPUT"
 
       - name: Build web
         if: inputs.has_web
@@ -97,6 +99,8 @@ jobs:
           VITE_COGNITO_CLIENT_ID: ${{ steps.ssm.outputs.web_client_id }}
           VITE_COGNITO_DOMAIN: ${{ steps.ssm.outputs.cognito_domain }}
           NEXT_PUBLIC_BACKEND_URL: ${{ steps.ssm.outputs.backend_url }}
+          WEB_BUCKET_NAME: ${{ steps.ssm.outputs.web_bucket }}
+          WEB_DISTRIBUTION_ID: ${{ steps.ssm.outputs.web_distribution_id }}
 
       - name: Promote branch
         if: inputs.promote_branch != ''
