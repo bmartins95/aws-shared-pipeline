@@ -62,24 +62,22 @@ jobs:
 
       - name: Wait for aws-infra pipeline
         run: |
-          sleep 30
-          RUN_ID=$(gh run list \
-            --repo "$INFRA_REPO" \
-            --event repository_dispatch \
-            --limit 10 \
-            --json databaseId,createdAt \
-            --jq "[.[] | select(.createdAt >= \"$DISPATCH_TIME\")] | .[0].databaseId")
-
-          if [ -z "$RUN_ID" ] || [ "$RUN_ID" = "null" ]; then
-            echo "Could not find triggered run, retrying in 30s..."
-            sleep 30
+          echo "Polling for aws-infra run triggered at or after $DISPATCH_TIME..."
+          DEADLINE=$(($(date +%s) + 300))
+          RUN_ID=""
+          while [ -z "$RUN_ID" ] || [ "$RUN_ID" = "null" ]; do
+            if [ "$(date +%s)" -gt "$DEADLINE" ]; then
+              echo "Timed out after 5 minutes waiting for aws-infra run to appear"
+              exit 1
+            fi
+            sleep 15
             RUN_ID=$(gh run list \
               --repo "$INFRA_REPO" \
               --event repository_dispatch \
-              --limit 10 \
+              --limit 20 \
               --json databaseId,createdAt \
-              --jq "[.[] | select(.createdAt >= \"$DISPATCH_TIME\")] | .[0].databaseId")
-          fi
-
-          echo "Watching run $RUN_ID in $INFRA_REPO"
+              --jq "[.[] | select(.createdAt >= \"$DISPATCH_TIME\")] | .[0].databaseId // empty")
+            echo "Run ID: ${RUN_ID:-not found yet, retrying...}"
+          done
+          echo "Found run $RUN_ID in $INFRA_REPO"
           gh run watch "$RUN_ID" --repo "$INFRA_REPO" --exit-status
