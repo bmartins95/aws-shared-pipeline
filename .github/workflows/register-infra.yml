@@ -79,5 +79,29 @@ jobs:
               --jq "[.[] | select(.createdAt >= \"$DISPATCH_TIME\")] | .[0].databaseId // empty")
             echo "Run ID: ${RUN_ID:-not found yet, retrying...}"
           done
-          echo "Found run $RUN_ID in $INFRA_REPO"
-          gh run watch "$RUN_ID" --repo "$INFRA_REPO" --exit-status
+          echo "Found run $RUN_ID in $INFRA_REPO — polling for completion..."
+          TIMEOUT=3600
+          ELAPSED=0
+          INTERVAL=30
+          while true; do
+            RESULT=$(gh run view "$RUN_ID" --repo "$INFRA_REPO" --json status,conclusion \
+              --jq '{status: .status, conclusion: .conclusion}')
+            STATUS=$(echo "$RESULT" | jq -r '.status')
+            CONCLUSION=$(echo "$RESULT" | jq -r '.conclusion')
+            echo "[$ELAPSED s] status=$STATUS conclusion=$CONCLUSION"
+            if [ "$STATUS" = "completed" ]; then
+              if [ "$CONCLUSION" = "success" ]; then
+                echo "aws-infra run $RUN_ID completed successfully"
+                exit 0
+              else
+                echo "aws-infra run $RUN_ID failed with conclusion: $CONCLUSION"
+                exit 1
+              fi
+            fi
+            if [ "$ELAPSED" -ge "$TIMEOUT" ]; then
+              echo "Timed out after ${TIMEOUT}s waiting for run $RUN_ID to complete"
+              exit 1
+            fi
+            sleep "$INTERVAL"
+            ELAPSED=$((ELAPSED + INTERVAL))
+          done
